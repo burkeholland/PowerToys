@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files"><UniqueIdentifier>{72FDE46C-5340-4BD5-A5FE-3758D244B19D}</UniqueIdentifier></Filter>
+    <Filter Include="Header Files"><UniqueIdentifier>{7A96557E-6285-4324-97D8-3894D5EE4F5C}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="Settings.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="Converter.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="trace.cpp"><Filter>Source Files</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="pch.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Settings.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="ImageConverterConstants.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Converter.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="trace.h"><Filter>Header Files</Filter></ClInclude>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files"><UniqueIdentifier>{8285B0E3-7210-4E3A-B3F5-71C602828F0E}</UniqueIdentifier></Filter>
+    <Filter Include="Header Files"><UniqueIdentifier>{6D8D5588-6272-44E5-B349-614996D101D0}</UniqueIdentifier></Filter>
+    <Filter Include="Resource Files"><UniqueIdentifier>{7A2147B9-368B-4343-923F-3C0B9F256B60}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="dllmain.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="SubMenu.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="SubMenuItem.cpp"><Filter>Source Files</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="pch.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="SubMenu.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="SubMenuItem.h"><Filter>Header Files</Filter></ClInclude>
+    <None Include="resource.base.h"><Filter>Resource Files</Filter></None><None Include="Source.def"><Filter>Resource Files</Filter></None><None Include="packages.config"><Filter>Resource Files</Filter></None>
+  </ItemGroup>
+  <ItemGroup><ResourceCompile Include="ImageConverterContextMenu.base.rc"><Filter>Resource Files</Filter></ResourceCompile></ItemGroup>
+</Project>
