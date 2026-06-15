@@ -113,13 +113,13 @@ SubMenuItem::SubMenuItem(ImageFormat targetFormat, IShellItemArray* selection) :
 
 IFACEMETHODIMP SubMenuItem::GetTitle(_In_opt_ IShellItemArray*, _Outptr_result_nullonfailure_ PWSTR* title)
 {
-    return SHStrDup(FormatName(m_targetFormat).c_str(), title);
+    return SHStrDupW(FormatName(m_targetFormat).c_str(), title);
 }
 
 IFACEMETHODIMP SubMenuItem::GetIcon(_In_opt_ IShellItemArray*, _Outptr_result_nullonfailure_ PWSTR* icon)
 {
     *icon = nullptr;
-    return S_OK;
+    return E_NOTIMPL;
 }
 
 IFACEMETHODIMP SubMenuItem::GetToolTip(_In_opt_ IShellItemArray*, _Outptr_result_nullonfailure_ PWSTR* infoTip)

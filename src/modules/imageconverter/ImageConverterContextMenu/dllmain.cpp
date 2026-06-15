@@ -113,9 +113,8 @@ public:
 
     IFACEMETHODIMP GetIcon(_In_opt_ IShellItemArray*, _Outptr_result_nullonfailure_ PWSTR* icon)
     {
-        std::wstring iconResourcePath = get_module_folderpath(g_hInst);
-        iconResourcePath += L"\\Assets\\ImageConverter\\ImageConverter.ico";
-        return SHStrDup(iconResourcePath.c_str(), icon);
+        *icon = nullptr;
+        return E_NOTIMPL;
     }
 
     IFACEMETHODIMP GetToolTip(_In_opt_ IShellItemArray*, _Outptr_result_nullonfailure_ PWSTR* infoTip)
@@ -133,6 +132,7 @@ public:
     IFACEMETHODIMP GetState(_In_opt_ IShellItemArray* selection, _In_ BOOL, _Out_ EXPCMDSTATE* cmdState)
     {
         *cmdState = ECS_HIDDEN;
+        m_cachedSelection.Reset();
         if (!selection || !CSettingsInstance().GetEnabled())
         {
             return S_OK;
@@ -142,7 +142,7 @@ public:
         {
             return S_OK;
         }
-        // Extension check passed — this is a supported image file
+        m_cachedSelection = selection;
         *cmdState = ECS_ENABLED;
         return S_OK;
     }
@@ -161,19 +161,20 @@ public:
     IFACEMETHODIMP EnumSubCommands(_COM_Outptr_ IEnumExplorerCommand** enumCommands)
     {
         *enumCommands = nullptr;
-        if (!m_site)
+
+        // Use the cached selection from GetState (preferred).
+        // Fall back to IFolderView2 site query if cache is empty.
+        ComPtr<IShellItemArray> selection = m_cachedSelection;
+        if (!selection && m_site)
         {
-            return E_FAIL;
-        }
-        // Get the selection from the site's IFolderView
-        ComPtr<IShellItemArray> selection;
-        ComPtr<IServiceProvider> sp;
-        if (SUCCEEDED(m_site.As(&sp)))
-        {
-            ComPtr<IFolderView2> folderView;
-            if (SUCCEEDED(sp->QueryService(SID_SFolderView, IID_PPV_ARGS(&folderView))))
+            ComPtr<IServiceProvider> sp;
+            if (SUCCEEDED(m_site.As(&sp)))
             {
-                folderView->GetSelection(FALSE, &selection);
+                ComPtr<IFolderView2> folderView;
+                if (SUCCEEDED(sp->QueryService(SID_SFolderView, IID_PPV_ARGS(&folderView))))
+                {
+                    folderView->GetSelection(FALSE, &selection);
+                }
             }
         }
         if (!selection)
@@ -185,7 +186,6 @@ public:
         {
             return E_FAIL;
         }
-        // For multi-format selections, show all formats
         bool showAll = HasMultipleFormats(selection.Get());
         auto subMenu = Make<SubMenu>(selection.Get(), sourceFormat, showAll);
         return subMenu.CopyTo(enumCommands);
@@ -204,6 +204,7 @@ public:
 
 private:
     ComPtr<IUnknown> m_site;
+    ComPtr<IShellItemArray> m_cachedSelection;
 };
 
 CoCreatableClass(ImageConverterContextMenuCommand)

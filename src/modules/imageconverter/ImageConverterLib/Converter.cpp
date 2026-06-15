@@ -215,8 +215,13 @@ HRESULT Converter::Convert(const std::wstring& sourcePath, const ConversionOptio
         return hr;
     }
 
-    // Close the stream before renaming
+    // Release all COM objects that hold the file open before renaming
+    targetFrame.Reset();
+    encoder.Reset();
     stream.Reset();
+    formatConverter.Reset();
+    sourceFrame.Reset();
+    decoder.Reset();
 
     // Move temp file to final path without overwriting
     if (!MoveFileExW(tempPath.c_str(), outputPath.c_str(), 0))
