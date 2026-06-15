@@ -64,10 +64,10 @@ void CSettings::Load()
     }
 }
 
-int CSettings::GetJpegQuality(){ Reload(); return settings.jpegQuality; }
-int CSettings::GetWebpQuality(){ Reload(); return settings.webpQuality; }
-int CSettings::GetHeicQuality(){ Reload(); return settings.heicQuality; }
-bool CSettings::GetStripMetadata(){ Reload(); return settings.stripMetadata; }
+int CSettings::GetJpegQuality(){ std::lock_guard<std::mutex> lock(m_mutex); Reload(); return settings.jpegQuality; }
+int CSettings::GetWebpQuality(){ std::lock_guard<std::mutex> lock(m_mutex); Reload(); return settings.webpQuality; }
+int CSettings::GetHeicQuality(){ std::lock_guard<std::mutex> lock(m_mutex); Reload(); return settings.heicQuality; }
+bool CSettings::GetStripMetadata(){ std::lock_guard<std::mutex> lock(m_mutex); Reload(); return settings.stripMetadata; }
 
 void CSettings::RefreshEnabledState()
 {

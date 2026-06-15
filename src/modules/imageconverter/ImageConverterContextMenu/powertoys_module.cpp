@@ -52,7 +52,8 @@ public:
 
     virtual bool get_config(_Out_ PWSTR /*buffer*/, _Out_ int* /*buffer_size*/) override
     {
-        return true;
+        // Settings managed via JSON file and Settings UI page
+        return false;
     }
 
     virtual void set_config(const wchar_t* /*config*/) override

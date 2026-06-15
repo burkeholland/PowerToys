@@ -66,43 +66,164 @@ HRESULT Converter::Convert(const std::wstring& sourcePath, const ConversionOptio
     RETURN_IF_FAILED(factory->CreateDecoderFromFilename(sourcePath.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder));
     ComPtr<IWICBitmapFrameDecode> sourceFrame;
     RETURN_IF_FAILED(decoder->GetFrame(0, &sourceFrame));
+
+    // Write to a temporary file, then rename on success to avoid partial output
+    std::wstring tempPath = outputPath + L".tmp";
     ComPtr<IWICStream> stream;
     RETURN_IF_FAILED(factory->CreateStream(&stream));
-    RETURN_IF_FAILED(stream->InitializeFromFilename(outputPath.c_str(), GENERIC_WRITE));
+    HRESULT hr = stream->InitializeFromFilename(tempPath.c_str(), GENERIC_WRITE);
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+
     ComPtr<IWICBitmapEncoder> encoder;
-    RETURN_IF_FAILED(factory->CreateEncoder(GetWICEncoderCLSID(options.targetFormat), nullptr, &encoder));
-    RETURN_IF_FAILED(encoder->Initialize(stream.Get(), WICBitmapEncoderNoCache));
+    hr = factory->CreateEncoder(GetWICEncoderCLSID(options.targetFormat), nullptr, &encoder);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
+    hr = encoder->Initialize(stream.Get(), WICBitmapEncoderNoCache);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
     ComPtr<IWICBitmapFrameEncode> targetFrame;
     ComPtr<IPropertyBag2> propertyBag;
-    RETURN_IF_FAILED(encoder->CreateNewFrame(&targetFrame, &propertyBag));
+    hr = encoder->CreateNewFrame(&targetFrame, &propertyBag);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
     if (options.targetFormat == ImageFormat::JPEG || options.targetFormat == ImageFormat::WebP || options.targetFormat == ImageFormat::HEIC)
     {
         SetQuality(propertyBag.Get(), options.quality);
     }
-    RETURN_IF_FAILED(targetFrame->Initialize(propertyBag.Get()));
+
+    hr = targetFrame->Initialize(propertyBag.Get());
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
     if (!options.stripMetadata)
     {
         CopyMetadata(sourceFrame.Get(), targetFrame.Get());
     }
+
     UINT width = 0, height = 0;
-    RETURN_IF_FAILED(sourceFrame->GetSize(&width, &height));
-    RETURN_IF_FAILED(targetFrame->SetSize(width, height));
+    hr = sourceFrame->GetSize(&width, &height);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
+    hr = targetFrame->SetSize(width, height);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
     WICPixelFormatGUID pixelFormat = GetWICPixelFormat(options.targetFormat);
-    RETURN_IF_FAILED(targetFrame->SetPixelFormat(&pixelFormat));
+    hr = targetFrame->SetPixelFormat(&pixelFormat);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
     ComPtr<IWICFormatConverter> formatConverter;
-    RETURN_IF_FAILED(factory->CreateFormatConverter(&formatConverter));
+    hr = factory->CreateFormatConverter(&formatConverter);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
     BOOL canConvert = FALSE;
     WICPixelFormatGUID sourcePixelFormat{};
-    RETURN_IF_FAILED(sourceFrame->GetPixelFormat(&sourcePixelFormat));
-    RETURN_IF_FAILED(formatConverter->CanConvert(sourcePixelFormat, pixelFormat, &canConvert));
+    hr = sourceFrame->GetPixelFormat(&sourcePixelFormat);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
+    hr = formatConverter->CanConvert(sourcePixelFormat, pixelFormat, &canConvert);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
     if (!canConvert)
     {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
         return WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT;
     }
-    RETURN_IF_FAILED(formatConverter->Initialize(sourceFrame.Get(), pixelFormat, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom));
-    RETURN_IF_FAILED(targetFrame->WriteSource(formatConverter.Get(), nullptr));
-    RETURN_IF_FAILED(targetFrame->Commit());
-    RETURN_IF_FAILED(encoder->Commit());
+
+    hr = formatConverter->Initialize(sourceFrame.Get(), pixelFormat, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
+    hr = targetFrame->WriteSource(formatConverter.Get(), nullptr);
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
+    hr = targetFrame->Commit();
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
+    hr = encoder->Commit();
+    if (FAILED(hr))
+    {
+        stream.Reset();
+        DeleteFileW(tempPath.c_str());
+        return hr;
+    }
+
+    // Close the stream before renaming
+    stream.Reset();
+
+    // Atomic rename to final output path
+    if (!MoveFileExW(tempPath.c_str(), outputPath.c_str(), MOVEFILE_REPLACE_EXISTING))
+    {
+        DeleteFileW(tempPath.c_str());
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+
     return S_OK;
 }
 
@@ -166,7 +287,8 @@ std::wstring Converter::GenerateOutputPath(const std::wstring& sourcePath, Image
     std::filesystem::path path(sourcePath);
     std::filesystem::path output = path;
     output.replace_extension(GetExtensionForFormat(targetFormat));
-    if (!std::filesystem::exists(output))
+    std::error_code ec;
+    if (!std::filesystem::exists(output, ec))
     {
         return output.wstring();
     }
@@ -176,7 +298,7 @@ std::wstring Converter::GenerateOutputPath(const std::wstring& sourcePath, Image
     for (int index = 1; index < INT_MAX; ++index)
     {
         std::filesystem::path candidate = parent / (stem + L" (" + std::to_wstring(index) + L")" + extension);
-        if (!std::filesystem::exists(candidate))
+        if (!std::filesystem::exists(candidate, ec))
         {
             return candidate.wstring();
         }

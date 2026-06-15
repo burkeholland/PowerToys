@@ -3,6 +3,7 @@
 
 #include <Settings.h>
 #include <trace.h>
+#include <common/logger/logger.h>
 
 using namespace Microsoft::WRL;
 
@@ -34,45 +35,76 @@ namespace
         }
     }
 
-    void ConvertSelection(ComPtr<IShellItemArray> selection, ImageFormat targetFormat)
+    std::vector<std::wstring> ExtractPaths(IShellItemArray* selection)
     {
-        const HRESULT coinit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-        DWORD count = 0;
-        if (!selection || FAILED(selection->GetCount(&count)))
+        std::vector<std::wstring> paths;
+        if (!selection)
         {
-            if (SUCCEEDED(coinit))
+            return paths;
+        }
+        DWORD count = 0;
+        if (FAILED(selection->GetCount(&count)))
+        {
+            return paths;
+        }
+        paths.reserve(count);
+        for (DWORD i = 0; i < count; ++i)
+        {
+            ComPtr<IShellItem> item;
+            if (FAILED(selection->GetItemAt(i, &item)))
             {
-                CoUninitialize();
+                continue;
+            }
+            PWSTR rawPath = nullptr;
+            if (FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &rawPath)) || rawPath == nullptr)
+            {
+                continue;
+            }
+            paths.emplace_back(rawPath);
+            CoTaskMemFree(rawPath);
+        }
+        return paths;
+    }
+
+    void ConvertFiles(std::vector<std::wstring> paths, ImageFormat targetFormat, HMODULE dllModule)
+    {
+        // Hold the DLL loaded while the worker thread runs
+        wchar_t modulePath[MAX_PATH]{};
+        GetModuleFileNameW(dllModule, modulePath, MAX_PATH);
+        HMODULE hKeepLoaded = nullptr;
+        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(&ConvertFiles), &hKeepLoaded);
+
+        const HRESULT coinit = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        if (FAILED(coinit) && coinit != RPC_E_CHANGED_MODE)
+        {
+            Logger::error(L"ImageConverter: CoInitializeEx failed hr=0x{:08X}", static_cast<unsigned>(coinit));
+            if (hKeepLoaded)
+            {
+                FreeLibrary(hKeepLoaded);
             }
             return;
         }
 
         ConversionOptions options{ targetFormat, QualityForFormat(targetFormat), CSettingsInstance().GetStripMetadata() };
-        for (DWORD index = 0; index < count; ++index)
+        for (const auto& sourcePath : paths)
         {
-            ComPtr<IShellItem> shellItem;
-            if (FAILED(selection->GetItemAt(index, &shellItem)))
-            {
-                continue;
-            }
-
-            PWSTR rawPath = nullptr;
-            if (FAILED(shellItem->GetDisplayName(SIGDN_FILESYSPATH, &rawPath)) || rawPath == nullptr)
-            {
-                continue;
-            }
-
-            std::wstring sourcePath(rawPath);
-            CoTaskMemFree(rawPath);
-
             std::wstring outputPath;
             const HRESULT hr = Converter::Convert(sourcePath, options, outputPath);
+            if (FAILED(hr))
+            {
+                Logger::warn(L"ImageConverter: Failed to convert '{}' hr=0x{:08X}", sourcePath, static_cast<unsigned>(hr));
+            }
             Trace::ConvertRet(hr);
         }
 
         if (SUCCEEDED(coinit))
         {
             CoUninitialize();
+        }
+
+        if (hKeepLoaded)
+        {
+            FreeLibraryAndExitThread(hKeepLoaded, 0);
         }
     }
 }
@@ -116,8 +148,16 @@ IFACEMETHODIMP SubMenuItem::Invoke(_In_opt_ IShellItemArray* selection, _In_opt_
 try
 {
     Trace::Invoked();
-    ComPtr<IShellItemArray> selectionCopy = selection ? selection : m_selection.Get();
-    std::thread(ConvertSelection, selectionCopy, m_targetFormat).detach();
+    IShellItemArray* effectiveSelection = selection ? selection : m_selection.Get();
+    auto paths = ExtractPaths(effectiveSelection);
+    if (paths.empty())
+    {
+        Trace::InvokedRet(E_FAIL);
+        return S_OK;
+    }
+
+    extern HINSTANCE g_hInst;
+    std::thread(ConvertFiles, std::move(paths), m_targetFormat, static_cast<HMODULE>(g_hInst)).detach();
     Trace::InvokedRet(S_OK);
     return S_OK;
 }

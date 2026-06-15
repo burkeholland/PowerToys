@@ -4,14 +4,15 @@
 
 using namespace Microsoft::WRL;
 
-SubMenu::SubMenu(IShellItemArray* selection, ImageFormat sourceFormat) :
+SubMenu::SubMenu(IShellItemArray* selection, ImageFormat sourceFormat, bool showAllFormats) :
     m_selection(selection),
-    m_sourceFormat(sourceFormat)
+    m_sourceFormat(sourceFormat),
+    m_showAllFormats(showAllFormats)
 {
     const ImageFormat formats[] = { ImageFormat::PNG, ImageFormat::JPEG, ImageFormat::BMP, ImageFormat::TIFF, ImageFormat::WebP, ImageFormat::HEIC, ImageFormat::ICO };
     for (const auto format : formats)
     {
-        if (format != m_sourceFormat)
+        if (m_showAllFormats || format != m_sourceFormat)
         {
             m_commands.push_back(Make<SubMenuItem>(format, m_selection.Get()));
         }
@@ -57,6 +58,6 @@ IFACEMETHODIMP SubMenu::Reset()
 IFACEMETHODIMP SubMenu::Clone(__deref_out IEnumExplorerCommand** ppenum)
 {
     *ppenum = nullptr;
-    auto clone = Make<SubMenu>(m_selection.Get(), m_sourceFormat);
+    auto clone = Make<SubMenu>(m_selection.Get(), m_sourceFormat, m_showAllFormats);
     return clone.CopyTo(ppenum);
 }

@@ -6,7 +6,7 @@
 class SubMenu final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IEnumExplorerCommand>
 {
 public:
-    SubMenu(IShellItemArray* selection, ImageFormat sourceFormat);
+    SubMenu(IShellItemArray* selection, ImageFormat sourceFormat, bool showAllFormats = false);
 
     IFACEMETHODIMP Next(ULONG celt, __out_ecount_part(celt, *pceltFetched) IExplorerCommand** apUICommand, __out_opt ULONG* pceltFetched);
     IFACEMETHODIMP Skip(ULONG celt);
@@ -16,6 +16,7 @@ public:
 private:
     Microsoft::WRL::ComPtr<IShellItemArray> m_selection;
     ImageFormat m_sourceFormat;
+    bool m_showAllFormats;
     std::vector<Microsoft::WRL::ComPtr<IExplorerCommand>> m_commands;
     std::vector<Microsoft::WRL::ComPtr<IExplorerCommand>>::const_iterator m_currentCommand;
 };

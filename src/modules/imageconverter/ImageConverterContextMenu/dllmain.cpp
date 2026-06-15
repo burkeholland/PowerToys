@@ -5,6 +5,7 @@
 
 #include <Converter.h>
 #include <Settings.h>
+#include <common/logger/logger.h>
 #include <common/telemetry/EtwTrace/EtwTrace.h>
 #include <common/utils/process_path.h>
 #include <common/utils/resources.h>
@@ -43,6 +44,44 @@ namespace
         }
         sourceFormat = Converter::GetFormatFromExtension(extension);
         return S_OK;
+    }
+
+    bool HasMultipleFormats(IShellItemArray* selection)
+    {
+        DWORD count = 0;
+        if (!selection || FAILED(selection->GetCount(&count)) || count <= 1)
+        {
+            return false;
+        }
+        ImageFormat firstFormat{};
+        if (FAILED(GetSourceFormat(selection, firstFormat)))
+        {
+            return false;
+        }
+        for (DWORD i = 1; i < count; ++i)
+        {
+            ComPtr<IShellItem> item;
+            if (FAILED(selection->GetItemAt(i, &item)))
+            {
+                continue;
+            }
+            PWSTR rawPath = nullptr;
+            if (FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &rawPath)) || rawPath == nullptr)
+            {
+                continue;
+            }
+            wil::unique_cotaskmem_string path(rawPath);
+            const wchar_t* ext = PathFindExtensionW(path.get());
+            if (ext && IsSupportedExtension(ext))
+            {
+                ImageFormat fmt = Converter::GetFormatFromExtension(ext);
+                if (fmt != firstFormat)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
 
@@ -92,7 +131,6 @@ public:
     IFACEMETHODIMP GetState(_In_opt_ IShellItemArray* selection, _In_ BOOL, _Out_ EXPCMDSTATE* cmdState)
     {
         *cmdState = ECS_HIDDEN;
-        m_selection = selection;
         if (!selection || !CSettingsInstance().GetEnabled())
         {
             return S_OK;
@@ -102,18 +140,8 @@ public:
         {
             return S_OK;
         }
-        ComPtr<IShellItem> shellItem;
-        RETURN_IF_FAILED(selection->GetItemAt(0, &shellItem));
-        PWSTR rawPath = nullptr;
-        RETURN_IF_FAILED(shellItem->GetDisplayName(SIGDN_FILESYSPATH, &rawPath));
-        wil::unique_cotaskmem_string path(rawPath);
-        PERCEIVED perceivedType{};
-        PERCEIVEDFLAG perceivedFlag{};
-        AssocGetPerceivedType(PathFindExtensionW(path.get()), &perceivedType, &perceivedFlag, nullptr);
-        if (perceivedType == PERCEIVED_TYPE_IMAGE)
-        {
-            *cmdState = ECS_ENABLED;
-        }
+        // Extension check passed — this is a supported image file
+        *cmdState = ECS_ENABLED;
         return S_OK;
     }
 
@@ -131,13 +159,33 @@ public:
     IFACEMETHODIMP EnumSubCommands(_COM_Outptr_ IEnumExplorerCommand** enumCommands)
     {
         *enumCommands = nullptr;
-        if (!m_selection)
+        if (!m_site)
+        {
+            return E_FAIL;
+        }
+        // Get the selection from the site's IFolderView
+        ComPtr<IShellItemArray> selection;
+        ComPtr<IServiceProvider> sp;
+        if (SUCCEEDED(m_site.As(&sp)))
+        {
+            ComPtr<IFolderView2> folderView;
+            if (SUCCEEDED(sp->QueryService(SID_SFolderView, IID_PPV_ARGS(&folderView))))
+            {
+                folderView->GetSelection(FALSE, &selection);
+            }
+        }
+        if (!selection)
         {
             return E_FAIL;
         }
         ImageFormat sourceFormat{};
-        RETURN_IF_FAILED(GetSourceFormat(m_selection.Get(), sourceFormat));
-        auto subMenu = Make<SubMenu>(m_selection.Get(), sourceFormat);
+        if (FAILED(GetSourceFormat(selection.Get(), sourceFormat)))
+        {
+            return E_FAIL;
+        }
+        // For multi-format selections, show all formats
+        bool showAll = HasMultipleFormats(selection.Get());
+        auto subMenu = Make<SubMenu>(selection.Get(), sourceFormat, showAll);
         return subMenu.CopyTo(enumCommands);
     }
 
@@ -154,7 +202,6 @@ public:
 
 private:
     ComPtr<IUnknown> m_site;
-    ComPtr<IShellItemArray> m_selection;
 };
 
 CoCreatableClass(ImageConverterContextMenuCommand)

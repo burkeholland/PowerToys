@@ -2,6 +2,7 @@
 
 #include "pch.h"
 #include <common/utils/gpo.h>
+#include <mutex>
 
 namespace powertoys_gpo
 {
@@ -23,6 +24,7 @@ public:
             return true;
         if (gpoSetting == powertoys_gpo::gpo_rule_configured_disabled)
             return false;
+        std::lock_guard<std::mutex> lock(m_mutex);
         RefreshEnabledState();
         return settings.enabled;
     }
@@ -54,6 +56,7 @@ private:
     std::wstring generalJsonFilePath;
     FILETIME lastLoadedTime{};
     FILETIME lastLoadedGeneralSettingsTime{};
+    mutable std::mutex m_mutex;
 };
 
 CSettings& CSettingsInstance();
