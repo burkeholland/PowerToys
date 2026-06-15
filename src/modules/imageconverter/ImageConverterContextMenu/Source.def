@@ -3,3 +3,4 @@ EXPORTS
     DllGetActivationFactory     PRIVATE
     DllCanUnloadNow             PRIVATE
     DllGetClassObject           PRIVATE
+    powertoy_create             PRIVATE

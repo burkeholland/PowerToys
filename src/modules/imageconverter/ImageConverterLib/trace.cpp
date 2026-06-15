@@ -23,3 +23,8 @@ void Trace::ConvertRet(_In_ HRESULT hr) noexcept
 {
     TraceLoggingWriteWrapper(g_hProvider, "ImageConverter_ConvertRet", ProjectTelemetryPrivacyDataTag(ProjectTelemetryTag_ProductAndServicePerformance), TraceLoggingHResult(hr), TraceLoggingKeyword(PROJECT_KEYWORD_MEASURE));
 }
+
+void Trace::EnableImageConverter(_In_ bool enabled) noexcept
+{
+    TraceLoggingWriteWrapper(g_hProvider, "ImageConverter_EnableToggle", ProjectTelemetryPrivacyDataTag(ProjectTelemetryTag_ProductAndServicePerformance), TraceLoggingBoolean(enabled, "Enabled"), TraceLoggingKeyword(PROJECT_KEYWORD_MEASURE));
+}

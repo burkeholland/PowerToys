@@ -18,7 +18,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel><SDLCheck>true</SDLCheck><ConformanceMode>true</ConformanceMode>
       <PreprocessorDefinitions>IMAGECONVERTERCONTEXTMENU_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ImageConverterLib;$(RepoRoot)src\common\inc;$(RepoRoot)src\common\Telemetry;$(RepoRoot)src\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\ImageConverterLib;$(RepoRoot)src\common\inc;$(RepoRoot)src\common\Telemetry;$(RepoRoot)src\modules;$(RepoRoot)src\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
     </ClCompile>
     <Link>
@@ -38,6 +38,7 @@
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="SubMenu.cpp" />
     <ClCompile Include="SubMenuItem.cpp" />
+    <ClCompile Include="powertoys_module.cpp" />
   </ItemGroup>
   <ItemGroup><ResourceCompile Include="ImageConverterContextMenu.base.rc" /><None Include="Source.def" /><None Include="packages.config" /></ItemGroup>
   <ItemGroup>
