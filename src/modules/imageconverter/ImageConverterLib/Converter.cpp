@@ -217,11 +217,19 @@ HRESULT Converter::Convert(const std::wstring& sourcePath, const ConversionOptio
     // Close the stream before renaming
     stream.Reset();
 
-    // Atomic rename to final output path
-    if (!MoveFileExW(tempPath.c_str(), outputPath.c_str(), MOVEFILE_REPLACE_EXISTING))
+    // Move temp file to final path without overwriting
+    if (!MoveFileExW(tempPath.c_str(), outputPath.c_str(), 0))
     {
+        DWORD err = GetLastError();
+        if (err == ERROR_ALREADY_EXISTS || err == ERROR_FILE_EXISTS)
+        {
+            // Another process created the target — try next available name
+            DeleteFileW(tempPath.c_str());
+            // Regenerate path and retry via recursive call (rare path)
+            return Convert(sourcePath, options, outputPath);
+        }
         DeleteFileW(tempPath.c_str());
-        return HRESULT_FROM_WIN32(GetLastError());
+        return HRESULT_FROM_WIN32(err);
     }
 
     return S_OK;

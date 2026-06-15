@@ -66,22 +66,12 @@ namespace
         return paths;
     }
 
-    void ConvertFiles(std::vector<std::wstring> paths, ImageFormat targetFormat, HMODULE dllModule)
+    void ConvertFilesWorker(std::vector<std::wstring> paths, ImageFormat targetFormat)
     {
-        // Hold the DLL loaded while the worker thread runs
-        wchar_t modulePath[MAX_PATH]{};
-        GetModuleFileNameW(dllModule, modulePath, MAX_PATH);
-        HMODULE hKeepLoaded = nullptr;
-        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(&ConvertFiles), &hKeepLoaded);
-
         const HRESULT coinit = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
         if (FAILED(coinit) && coinit != RPC_E_CHANGED_MODE)
         {
             Logger::error(L"ImageConverter: CoInitializeEx failed hr=0x{:08X}", static_cast<unsigned>(coinit));
-            if (hKeepLoaded)
-            {
-                FreeLibrary(hKeepLoaded);
-            }
             return;
         }
 
@@ -101,6 +91,12 @@ namespace
         {
             CoUninitialize();
         }
+    }
+
+    void ConvertFilesEntry(std::vector<std::wstring> paths, ImageFormat targetFormat, HMODULE hKeepLoaded)
+    {
+        // Do all work in a sub-scope so locals are destroyed before FreeLibraryAndExitThread
+        ConvertFilesWorker(std::move(paths), targetFormat);
 
         if (hKeepLoaded)
         {
@@ -156,8 +152,27 @@ try
         return S_OK;
     }
 
-    extern HINSTANCE g_hInst;
-    std::thread(ConvertFiles, std::move(paths), m_targetFormat, static_cast<HMODULE>(g_hInst)).detach();
+    // Pin the DLL before spawning the thread to prevent unload race
+    HMODULE hKeepLoaded = nullptr;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+                            reinterpret_cast<LPCWSTR>(&ConvertFilesEntry),
+                            &hKeepLoaded))
+    {
+        Trace::InvokedRet(HRESULT_FROM_WIN32(GetLastError()));
+        return S_OK;
+    }
+
+    try
+    {
+        std::thread(ConvertFilesEntry, std::move(paths), m_targetFormat, hKeepLoaded).detach();
+    }
+    catch (...)
+    {
+        FreeLibrary(hKeepLoaded);
+        Trace::InvokedRet(E_FAIL);
+        return S_OK;
+    }
+
     Trace::InvokedRet(S_OK);
     return S_OK;
 }
