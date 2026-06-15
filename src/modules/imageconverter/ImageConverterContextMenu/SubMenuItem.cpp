@@ -71,7 +71,7 @@ namespace
         const HRESULT coinit = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
         if (FAILED(coinit) && coinit != RPC_E_CHANGED_MODE)
         {
-            Logger::error(L"ImageConverter: CoInitializeEx failed hr=0x{:08X}", static_cast<unsigned>(coinit));
+            Logger::error("ImageConverter: CoInitializeEx failed");
             return;
         }
 
@@ -82,7 +82,7 @@ namespace
             const HRESULT hr = Converter::Convert(sourcePath, options, outputPath);
             if (FAILED(hr))
             {
-                Logger::warn(L"ImageConverter: Failed to convert '{}' hr=0x{:08X}", sourcePath, static_cast<unsigned>(hr));
+                Logger::warn("ImageConverter: Failed to convert file");
             }
             Trace::ConvertRet(hr);
         }

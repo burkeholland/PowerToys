@@ -8,7 +8,6 @@
 #include <common/logger/logger.h>
 #include <common/telemetry/EtwTrace/EtwTrace.h>
 #include <common/utils/process_path.h>
-#include <common/utils/resources.h>
 #include <trace.h>
 #include <wil/win32_helpers.h>
 #include <wrl/module.h>
@@ -20,6 +19,8 @@ Shared::Trace::ETWTrace trace(L"ImageConverterContextMenu");
 
 namespace
 {
+    #pragma warning(push)
+    #pragma warning(disable: 26497) // Cannot be constexpr - uses runtime string operations
     bool IsSupportedExtension(std::wstring extension)
     {
         std::transform(extension.begin(), extension.end(), extension.begin(), [](wchar_t ch) { return static_cast<wchar_t>(std::towlower(ch)); });
@@ -29,6 +30,7 @@ namespace
         }
         return extension == L"png" || extension == L"jpg" || extension == L"jpeg" || extension == L"bmp" || extension == L"tif" || extension == L"tiff" || extension == L"webp" || extension == L"heic" || extension == L"heif" || extension == L"ico";
     }
+    #pragma warning(pop)
 
     HRESULT GetSourceFormat(IShellItemArray* selection, ImageFormat& sourceFormat)
     {
@@ -105,7 +107,7 @@ class __declspec(uuid("B1E0C5A2-3F7D-4E8A-9C6B-1D2E3F4A5B6C")) ImageConverterCon
 public:
     IFACEMETHODIMP GetTitle(_In_opt_ IShellItemArray*, _Outptr_result_nullonfailure_ PWSTR* name)
     {
-        static const std::wstring title = GET_RESOURCE_STRING_FALLBACK(IDS_IMAGECONVERTER_CONTEXT_MENU_ENTRY, L"Convert to");
+        static const std::wstring title = L"Convert to";
         return SHStrDup(title.c_str(), name);
     }
 

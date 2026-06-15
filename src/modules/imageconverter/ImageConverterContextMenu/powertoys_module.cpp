@@ -5,7 +5,6 @@
 #include <common/utils/gpo.h>
 #include <common/utils/logger_helper.h>
 #include <common/utils/process_path.h>
-#include <common/utils/resources.h>
 #include <interface/powertoy_module_interface.h>
 
 #include <ImageConverterConstants.h>
@@ -25,7 +24,7 @@ public:
     ImageConverterModule()
     {
         m_enabled = CSettingsInstance().GetEnabled();
-        LoggerHelpers::init_logger(ImageConverterConstants::ModuleKey, L"ModuleInterface", L"ImageConverter");
+        LoggerHelpers::init_logger(ImageConverterConstants::ModuleKey, L"ModuleInterface", "ImageConverter");
     }
 
     virtual void destroy() override
