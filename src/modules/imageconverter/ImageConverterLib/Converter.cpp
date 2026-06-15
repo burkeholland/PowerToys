@@ -38,7 +38,8 @@ namespace
             return S_OK;
         }
         PROPBAG2 option{};
-        option.pstrName = const_cast<LPOLESTR>(L"ImageQuality");
+        OLECHAR qualityName[] = L"ImageQuality";
+        option.pstrName = qualityName;
         VARIANT value{};
         VariantInit(&value);
         value.vt = VT_R4;

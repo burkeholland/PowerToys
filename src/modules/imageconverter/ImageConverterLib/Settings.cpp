@@ -27,7 +27,7 @@ namespace
         return false;
     }
 
-    int ClampQuality(int value, int fallback)
+    constexpr int ClampQuality(int value, int fallback)
     {
         return (value < 0 || value > 100) ? fallback : value;
     }
